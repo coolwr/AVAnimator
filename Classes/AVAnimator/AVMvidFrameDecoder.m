@@ -51,6 +51,8 @@
 
 @end
 
+// Number of CGFrameBuffers to allocate
+static int kCGFrameBufferCount = 5;
 
 @implementation AVMvidFrameDecoder
 
@@ -164,22 +166,23 @@
 
   uint32_t bitsPerPixel = [self header]->bpp;
   
-  CGFrameBuffer *cgFrameBuffer1 = [CGFrameBuffer cGFrameBufferWithBppDimensions:bitsPerPixel width:renderWidth height:renderHeight];
-  CGFrameBuffer *cgFrameBuffer2 = [CGFrameBuffer cGFrameBufferWithBppDimensions:bitsPerPixel width:renderWidth height:renderHeight];
-  CGFrameBuffer *cgFrameBuffer3 = [CGFrameBuffer cGFrameBufferWithBppDimensions:bitsPerPixel width:renderWidth height:renderHeight];
-  
-  self.cgFrameBuffers = [NSArray arrayWithObjects:cgFrameBuffer1, cgFrameBuffer2, cgFrameBuffer3, nil];
-  
-  // Double check size assumptions
-  
-  if (bitsPerPixel == 16) {
-    NSAssert(cgFrameBuffer1.bytesPerPixel == 2, @"invalid bytesPerPixel");
-  } else if (bitsPerPixel == 24 || bitsPerPixel == 32) {
-    NSAssert(cgFrameBuffer1.bytesPerPixel == 4, @"invalid bytesPerPixel");
-  } else {
-    NSAssert(FALSE, @"invalid bitsPerPixel");
+  NSMutableArray* frameBuffers = [NSMutableArray arrayWithCapacity:kCGFrameBufferCount];
+  for (int i=0; i<kCGFrameBufferCount; i++) {
+    CGFrameBuffer *frameBuffer = [CGFrameBuffer cGFrameBufferWithBppDimensions:bitsPerPixel width:renderWidth height:renderHeight];
+      
+    // Double check size assumptions
+    if (bitsPerPixel == 16) {
+      NSAssert(frameBuffer.bytesPerPixel == 2, @"invalid bytesPerPixel");
+    } else if (bitsPerPixel == 24 || bitsPerPixel == 32) {
+      NSAssert(frameBuffer.bytesPerPixel == 4, @"invalid bytesPerPixel");
+    } else {
+      NSAssert(FALSE, @"invalid bitsPerPixel");
+    }
+    [frameBuffers addObject:frameBuffer];
   }
   
+  self.cgFrameBuffers = [NSMutableArray arrayWithArray:frameBuffers];
+  NSAssert(self.cgFrameBuffers.count>0, @"no cgFrameBuffers");
   // If the input frames are in sRGB colorspace, then mark each frame so that RGB data is interpreted
   // as sRGB instead of generic RGB.
   // http://www.pupuweb.com/blog/wwdc-2012-session-523-practices-color-management-ken-greenebaum-luke-wallis/
